@@ -1,12 +1,12 @@
 package com.english.pronunciation
 
 import android.Manifest
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
@@ -15,9 +15,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -25,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -62,13 +65,13 @@ class MainActivity : ComponentActivity() {
 fun PronunciationTrainerScreen() {
     val context = LocalContext.current
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
-    val recognitionAvailable = remember { SpeechRecognizer.isRecognitionAvailable(context) }
 
     var currentIndex by remember { mutableStateOf(0) }
     val currentWord = WordBank.words[currentIndex]
 
     var isSpeaking by remember { mutableStateOf(false) }
     var isListening by remember { mutableStateOf(false) }
+    var micLevel by remember { mutableStateOf(0f) }
     var resultPercent by remember { mutableStateOf<Int?>(null) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     val sessionScores = remember { mutableStateListOf<Int>() }
@@ -106,40 +109,75 @@ fun PronunciationTrainerScreen() {
         engine.speak(word, TextToSpeech.QUEUE_FLUSH, null, "slow")
     }
 
-    val recognizerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        isListening = false
-        if (result.resultCode == Activity.RESULT_OK) {
-            val matches = result.data
-                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                ?: arrayListOf()
-            if (matches.isEmpty()) {
-                statusMessage = "Речь не распознана. Попробуйте ещё раз."
-                resultPercent = null
-            } else {
-                val score = PronunciationScorer.score(currentWord.english, matches)
-                resultPercent = score
-                sessionScores.add(score)
-                statusMessage = null
-            }
+    val speechRecognizer = remember {
+        if (SpeechRecognizer.isRecognitionAvailable(context)) {
+            SpeechRecognizer.createSpeechRecognizer(context)
         } else {
-            statusMessage = "Запись отменена."
+            null
         }
+    }
+    val recognitionAvailable = speechRecognizer != null
+
+    DisposableEffect(Unit) {
+        onDispose { speechRecognizer?.destroy() }
     }
 
     fun startListening() {
+        val recognizer = speechRecognizer
+        if (recognizer == null) {
+            statusMessage = "На этом устройстве недоступно распознавание речи."
+            return
+        }
+        statusMessage = null
+        resultPercent = null
+        isListening = true
+        micLevel = 0f
+        recognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {
+                micLevel = ((rmsdB + 2f) / 12f).coerceIn(0f, 1f)
+            }
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {
+                micLevel = 0f
+            }
+            override fun onError(error: Int) {
+                isListening = false
+                micLevel = 0f
+                statusMessage = when (error) {
+                    SpeechRecognizer.ERROR_NO_MATCH -> "Не удалось разобрать слово. Попробуйте ещё раз."
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Вы ничего не сказали. Попробуйте снова."
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Нет доступа к микрофону."
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Распознаватель занят, попробуйте ещё раз."
+                    SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
+                        "Проблема с сетью при распознавании речи."
+                    else -> "Ошибка распознавания речи."
+                }
+            }
+            override fun onResults(results: Bundle) {
+                isListening = false
+                micLevel = 0f
+                val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?: arrayListOf()
+                if (matches.isEmpty()) {
+                    statusMessage = "Речь не распознана. Попробуйте ещё раз."
+                } else {
+                    val score = PronunciationScorer.score(currentWord.english, matches)
+                    resultPercent = score
+                    sessionScores.add(score)
+                }
+            }
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "Say: ${currentWord.english}")
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
         }
-        isListening = true
-        runCatching { recognizerLauncher.launch(intent) }.onFailure {
-            isListening = false
-            statusMessage = "На этом устройстве недоступно распознавание речи."
-        }
+        recognizer.startListening(intent)
     }
 
     val micPermissionLauncher = rememberLauncherForActivityResult(
@@ -164,6 +202,9 @@ fun PronunciationTrainerScreen() {
     }
 
     fun nextWord() {
+        speechRecognizer?.cancel()
+        isListening = false
+        micLevel = 0f
         currentIndex = (currentIndex + 1) % WordBank.words.size
         resultPercent = null
         statusMessage = null
@@ -209,6 +250,15 @@ fun PronunciationTrainerScreen() {
             enabled = recognitionAvailable && !isSpeaking && !isListening
         ) {
             Text(if (isListening) "Слушаю..." else "🎤 Повторить слово")
+        }
+
+        if (isListening) {
+            Spacer(Modifier.height(12.dp))
+            val animatedLevel by animateFloatAsState(targetValue = micLevel, label = "micLevel")
+            LinearProgressIndicator(
+                progress = { animatedLevel },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         if (!recognitionAvailable) {
