@@ -4,7 +4,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -38,6 +40,9 @@ fun VoiceWaveform(
     accent: Color = Color.Unspecified
 ) {
     val bars = remember { mutableStateListOf<Float>().apply { repeat(BAR_COUNT) { add(0f) } } }
+    // The sampling loop outlives each recomposition, so it has to read the
+    // latest amplitude rather than the one captured when it started.
+    val currentLevel by rememberUpdatedState(level)
 
     LaunchedEffect(active, synthetic) {
         var smoothed = 0f
@@ -49,7 +54,7 @@ fun VoiceWaveform(
                     phase += 0.45f
                     (0.45f + 0.35f * sin(phase) + 0.2f * Random.nextFloat()).coerceIn(0f, 1f)
                 }
-                else -> level
+                else -> currentLevel
             }
             smoothed = smoothed * 0.55f + target * 0.45f
             bars.removeAt(0)
