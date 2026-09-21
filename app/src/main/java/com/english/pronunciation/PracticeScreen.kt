@@ -94,20 +94,40 @@ fun PracticeScreen(
     val results = remember { mutableStateMapOf<Int, Int>() }
 
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
+    var ttsStatus by remember { mutableStateOf<Int?>(null) }
+    // Bumped per attempt so a watchdog from an earlier attempt cannot cut a newer one short.
+    var speakAttempt by remember { mutableStateOf(0) }
+    var listenAttempt by remember { mutableStateOf(0) }
 
     DisposableEffect(Unit) {
-        val engine = TextToSpeech(context) { }
+        val engine = TextToSpeech(context) { status ->
+            mainHandler.post { ttsStatus = status }
+        }
         ttsEngine = engine
         onDispose {
+            mainHandler.removeCallbacksAndMessages(null)
             engine.stop()
             engine.shutdown()
         }
     }
 
     fun speakSlowThenFast(word: String) {
-        val engine = ttsEngine ?: return
+        val engine = ttsEngine
+        if (engine == null || ttsStatus == null) {
+            statusMessage = "Синтез речи ещё запускается, попробуйте через секунду."
+            return
+        }
+        if (ttsStatus != TextToSpeech.SUCCESS) {
+            statusMessage = "Синтез речи недоступен. Установите голосовой движок в настройках Android."
+            return
+        }
+        val language = engine.setLanguage(Locale.US)
+        if (language == TextToSpeech.LANG_MISSING_DATA || language == TextToSpeech.LANG_NOT_SUPPORTED) {
+            statusMessage = "Не установлен английский голос. Настройки → Язык и ввод → Синтез речи."
+            return
+        }
+        statusMessage = null
         isSpeaking = true
-        engine.language = Locale.US
         engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {}
             override fun onDone(utteranceId: String?) {
@@ -119,11 +139,23 @@ fun PracticeScreen(
                 }
             }
             override fun onError(utteranceId: String?) {
-                mainHandler.post { isSpeaking = false }
+                mainHandler.post {
+                    isSpeaking = false
+                    statusMessage = "Не удалось произнести слово."
+                }
             }
         })
         engine.setSpeechRate(0.5f)
-        engine.speak(word, TextToSpeech.QUEUE_FLUSH, null, "slow")
+        if (engine.speak(word, TextToSpeech.QUEUE_FLUSH, null, "slow") == TextToSpeech.ERROR) {
+            isSpeaking = false
+            statusMessage = "Не удалось запустить произношение."
+            return
+        }
+        // Without this the screen deadlocks if the engine never calls back:
+        // both buttons stay disabled while isSpeaking is stuck true.
+        speakAttempt++
+        val attempt = speakAttempt
+        mainHandler.postDelayed({ if (attempt == speakAttempt) isSpeaking = false }, 10_000)
     }
 
     val speechRecognizer = remember {
@@ -208,6 +240,15 @@ fun PracticeScreen(
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
         }
         recognizer.startListening(intent)
+        listenAttempt++
+        val attempt = listenAttempt
+        mainHandler.postDelayed({
+            if (attempt == listenAttempt && isListening) {
+                isListening = false
+                recognizer.cancel()
+                statusMessage = "Распознаватель не ответил. Попробуйте ещё раз."
+            }
+        }, 15_000)
     }
 
     val micPermissionLauncher = rememberLauncherForActivityResult(
