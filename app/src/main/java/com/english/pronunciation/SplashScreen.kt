@@ -8,6 +8,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,9 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,7 +33,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,20 +56,20 @@ private val FloatingWords = listOf(
     "rainbow" to 0.62f
 )
 
-/** Playful opener: bouncing mouth, drifting words and the app's own waveform. */
+/** Playful opener: the parrot swaying on its branch, drifting words and the app's own waveform. */
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
     val pulse = rememberInfiniteTransition(label = "splash")
-    val bounce by pulse.animateFloat(
-        initialValue = 0.92f,
-        targetValue = 1.10f,
-        animationSpec = infiniteRepeatable(tween(680, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "bounce"
+    val drop by pulse.animateFloat(
+        initialValue = 6f,
+        targetValue = -14f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "drop"
     )
     val wobble by pulse.animateFloat(
-        initialValue = -7f,
-        targetValue = 7f,
-        animationSpec = infiniteRepeatable(tween(900, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        initialValue = -1.6f,
+        targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "wobble"
     )
     val drift by pulse.animateFloat(
@@ -118,31 +120,28 @@ fun SplashScreen(onFinished: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Surface(
-                shape = CircleShape,
-                color = Color.White.copy(alpha = 0.92f),
+            Image(
+                painter = painterResource(R.drawable.parrot),
+                contentDescription = "Попугай на ветке",
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .size(160.dp)
+                    .size(width = 210.dp, height = 252.dp)
                     .graphicsLayer {
-                        scaleX = bounce
-                        scaleY = bounce
+                        transformOrigin = TransformOrigin(0.5f, 0.78f)
                         rotationZ = wobble
+                        translationY = drop
                     }
-            ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = "🗣️", fontSize = 86.sp)
-                }
-            }
+            )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
 
             Text(
-                text = "Учимся говорить\nправильно!",
+                text = "Учимся говорить\nправильно\nпо-английски",
                 color = Color.White,
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center,
-                lineHeight = 44.sp
+                lineHeight = 38.sp
             )
 
             Spacer(Modifier.height(12.dp))
