@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 
 private sealed class Screen {
+    object Splash : Screen()
     object CategoryList : Screen()
     data class Practice(val category: Category, val wordIndices: List<Int>) : Screen()
     data class Summary(
@@ -37,9 +38,12 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun PronunciationTrainerApp() {
-    var screen by remember { mutableStateOf<Screen>(Screen.CategoryList) }
+    var screen by remember { mutableStateOf<Screen>(Screen.Splash) }
 
     when (val current = screen) {
+        is Screen.Splash -> {
+            SplashScreen(onFinished = { screen = Screen.CategoryList })
+        }
         is Screen.CategoryList -> {
             CategoryListScreen(
                 categories = CategoryBank.categories,
