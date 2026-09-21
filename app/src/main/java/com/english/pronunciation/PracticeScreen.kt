@@ -13,21 +13,37 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -40,16 +56,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import java.util.Locale
+
+private val ButtonHeight = 56.dp
 
 /**
  * Practices the words at [wordIndices] (indices into [category].words), in order.
  * [onFinished] receives a score (0-100) per practiced word index once the last
  * word is completed.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PracticeScreen(
     category: Category,
@@ -158,7 +179,13 @@ fun PracticeScreen(
                 if (matches.isEmpty()) {
                     statusMessage = "Речь не распознана. Попробуйте ещё раз."
                 } else {
-                    val score = PronunciationScorer.score(currentWord.english, matches)
+                    val confidences =
+                        bundleResults.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
+                    val score = PronunciationScorer.score(
+                        currentWord.english,
+                        matches,
+                        confidences
+                    )
                     resultPercent = score
                     results[wordIndices[position]] = score
                 }
@@ -200,9 +227,8 @@ fun PracticeScreen(
         speechRecognizer?.cancel()
         isListening = false
         micLevel = 0f
-        val wordIndex = wordIndices[position]
         if (resultPercent == null) {
-            results[wordIndex] = 0
+            results[wordIndices[position]] = 0
         }
         if (isLastWord) {
             onFinished(results.toMap())
@@ -213,103 +239,234 @@ fun PracticeScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "${category.title} · слово ${position + 1} из ${wordIndices.size}",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(Modifier.height(24.dp))
-
-        Text(text = currentWord.emoji, fontSize = 96.sp)
-
-        Spacer(Modifier.height(16.dp))
-
-        Text(text = currentWord.english, style = MaterialTheme.typography.headlineLarge)
-        Text(
-            text = "/${currentWord.transcription}/",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(text = currentWord.russian, style = MaterialTheme.typography.titleMedium)
-
-        Spacer(Modifier.height(32.dp))
-
-        Button(onClick = { speakSlowThenFast(currentWord.english) }, enabled = !isSpeaking) {
-            Text(if (isSpeaking) "Проигрывание..." else "🔊 Слушать (медленно → быстро)")
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        Button(
-            onClick = { onRepeatClicked() },
-            enabled = recognitionAvailable && !isSpeaking && !isListening
-        ) {
-            Text(if (isListening) "Слушаю..." else "🎤 Повторить слово")
-        }
-
-        if (isListening) {
-            Spacer(Modifier.height(12.dp))
-            val animatedLevel by animateFloatAsState(targetValue = micLevel, label = "micLevel")
-            LinearProgressIndicator(
-                progress = { animatedLevel },
-                modifier = Modifier.fillMaxWidth()
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = "${category.icon}  ${category.title}",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onExit) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "К категориям")
+                    }
+                }
             )
         }
-
-        if (!recognitionAvailable) {
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            val progress by animateFloatAsState(
+                targetValue = (position + 1f) / wordIndices.size,
+                label = "blockProgress"
+            )
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+            )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "На этом устройстве недоступно распознавание речи.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
+                text = "Слово ${position + 1} из ${wordIndices.size}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
 
-        Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
 
-        statusMessage?.let {
-            Text(text = it, color = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.height(12.dp))
-        }
+            WordCard(currentWord)
 
-        resultPercent?.let { percent ->
-            val (label, color) = feedbackFor(percent)
-            Card(colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.15f))) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            Spacer(Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                VoiceWaveform(
+                    level = micLevel,
+                    active = isListening || isSpeaking,
+                    synthetic = isSpeaking,
+                    color = MaterialTheme.colorScheme.primary,
+                    accent = MaterialTheme.colorScheme.tertiary
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                FilledTonalButton(
+                    onClick = { speakSlowThenFast(currentWord.english) },
+                    enabled = !isSpeaking && !isListening,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ButtonHeight)
                 ) {
-                    Text(text = "$percent%", style = MaterialTheme.typography.displaySmall, color = color)
-                    Text(text = label, color = color)
+                    Text(if (isSpeaking) "🔊  Произносим..." else "🔊  Слушать (медленно → быстро)")
+                }
+
+                Button(
+                    onClick = { onRepeatClicked() },
+                    enabled = recognitionAvailable && !isSpeaking && !isListening,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ButtonHeight)
+                ) {
+                    Text(if (isListening) "🎙  Слушаю вас..." else "🎤  Повторить слово")
+                }
+
+                Button(
+                    onClick = { goToNextWord() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ButtonHeight)
+                ) {
+                    Text(if (isLastWord) "Завершить  🏁" else "Следующее слово  →")
                 }
             }
+
+            AnimatedVisibility(
+                visible = statusMessage != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Text(
+                    text = statusMessage.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                )
+            }
+
+            AnimatedVisibility(
+                visible = resultPercent != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                ScoreCard(percent = resultPercent ?: 0)
+            }
+
+            if (!recognitionAvailable) {
+                Text(
+                    text = "На этом устройстве недоступно распознавание речи.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
         }
+    }
+}
 
-        Spacer(Modifier.height(24.dp))
-
-        Button(onClick = { goToNextWord() }) {
-            Text(if (isLastWord) "Завершить 🏁" else "Следующее слово →")
+@Composable
+private fun WordCard(word: Word) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp, horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(132.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = word.emoji, fontSize = 68.sp)
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            Text(
+                text = word.english,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "/${word.transcription}/",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = word.russian,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
+    }
+}
 
-        Spacer(Modifier.height(12.dp))
-
-        OutlinedButton(onClick = onExit) {
-            Text("← К категориям")
+@Composable
+private fun ScoreCard(percent: Int) {
+    val (label, color) = feedbackFor(percent)
+    val animated by animateFloatAsState(targetValue = percent / 100f, label = "scoreBar")
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "$percent%",
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { animated },
+                color = color,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                color = color,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
 
 internal fun feedbackFor(percent: Int): Pair<String, Color> = when {
-    percent >= 85 -> "Отлично! 🎉" to Color(0xFF2E7D32)
-    percent >= 65 -> "Хорошо, но можно лучше 👍" to Color(0xFFF9A825)
-    percent >= 40 -> "Нужно ещё потренироваться 💪" to Color(0xFFEF6C00)
-    else -> "Попробуй ещё раз 🔄" to Color(0xFFC62828)
+    percent >= 90 -> "Отлично! 🎉" to Color(0xFF2E7D32)
+    percent >= 70 -> "Хорошо, но можно чище 👍" to Color(0xFF558B2F)
+    percent >= 50 -> "Похоже, но нужно потренироваться 💪" to Color(0xFFEF6C00)
+    else -> "Попробуйте ещё раз 🔄" to Color(0xFFC62828)
 }
