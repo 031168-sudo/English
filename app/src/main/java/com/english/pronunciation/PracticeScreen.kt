@@ -89,6 +89,7 @@ fun PracticeScreen(
     var isListening by remember { mutableStateOf(false) }
     var micLevel by remember { mutableStateOf(0f) }
     var resultPercent by remember { mutableStateOf<Int?>(null) }
+    var heardText by remember { mutableStateOf<String?>(null) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     val results = remember { mutableStateMapOf<Int, Int>() }
 
@@ -146,6 +147,7 @@ fun PracticeScreen(
         }
         statusMessage = null
         resultPercent = null
+        heardText = null
         isListening = true
         micLevel = 0f
         recognizer.setRecognitionListener(object : RecognitionListener {
@@ -166,9 +168,14 @@ fun PracticeScreen(
                     SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Вы ничего не сказали. Попробуйте снова."
                     SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Нет доступа к микрофону."
                     SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Распознаватель занят, попробуйте ещё раз."
+                    SpeechRecognizer.ERROR_AUDIO -> "Не удалось записать звук с микрофона."
+                    SpeechRecognizer.ERROR_CLIENT -> "Распознаватель отказал (ошибка 5)."
+                    SpeechRecognizer.ERROR_SERVER -> "Сервис распознавания вернул ошибку."
                     SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
                         "Проблема с сетью при распознавании речи."
-                    else -> "Ошибка распознавания речи."
+                    // Added in API 33; referenced by value to keep minSdk 26 happy.
+                    12, 13 -> "На устройстве не установлен английский для распознавания речи."
+                    else -> "Ошибка распознавания речи (код $error)."
                 }
             }
             override fun onResults(bundleResults: Bundle) {
@@ -187,6 +194,7 @@ fun PracticeScreen(
                         confidences
                     )
                     resultPercent = score
+                    heardText = matches.first()
                     results[wordIndices[position]] = score
                 }
             }
@@ -235,6 +243,7 @@ fun PracticeScreen(
         } else {
             position++
             resultPercent = null
+            heardText = null
             statusMessage = null
         }
     }
@@ -281,16 +290,16 @@ fun PracticeScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             WordCard(currentWord)
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(72.dp),
+                    .height(64.dp),
                 contentAlignment = Alignment.Center
             ) {
                 VoiceWaveform(
@@ -299,6 +308,42 @@ fun PracticeScreen(
                     synthetic = isSpeaking,
                     color = MaterialTheme.colorScheme.primary,
                     accent = MaterialTheme.colorScheme.tertiary
+                )
+            }
+
+            AnimatedVisibility(
+                visible = statusMessage != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Text(
+                    text = statusMessage.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                )
+            }
+
+            AnimatedVisibility(
+                visible = resultPercent != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                ScoreRow(percent = resultPercent ?: 0, heard = heardText)
+            }
+
+            if (!recognitionAvailable) {
+                Text(
+                    text = "На этом устройстве недоступно распознавание речи.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
                 )
             }
 
@@ -338,42 +383,6 @@ fun PracticeScreen(
                 }
             }
 
-            AnimatedVisibility(
-                visible = statusMessage != null,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Text(
-                    text = statusMessage.orEmpty(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
-                )
-            }
-
-            AnimatedVisibility(
-                visible = resultPercent != null,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                ScoreCard(percent = resultPercent ?: 0)
-            }
-
-            if (!recognitionAvailable) {
-                Text(
-                    text = "На этом устройстве недоступно распознавание речи.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp)
-                )
-            }
-
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -385,25 +394,25 @@ private fun WordCard(word: Word) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 24.dp, horizontal = 20.dp),
+                .padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(132.dp)
+                modifier = Modifier.size(104.dp)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = word.emoji, fontSize = 68.sp)
+                    Text(text = word.emoji, fontSize = 54.sp)
                 }
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(14.dp))
             Text(
                 text = word.english,
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )
@@ -425,39 +434,41 @@ private fun WordCard(word: Word) {
 }
 
 @Composable
-private fun ScoreCard(percent: Int) {
+private fun ScoreRow(percent: Int, heard: String?) {
     val (label, color) = feedbackFor(percent)
     val animated by animateFloatAsState(targetValue = percent / 100f, label = "scoreBar")
-    ElevatedCard(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 16.dp)
+            .padding(bottom = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
+        Text(
+            text = "$percent%",
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        LinearProgressIndicator(
+            progress = { animated },
+            color = color,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+                .height(8.dp)
+                .padding(vertical = 1.dp)
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+            textAlign = TextAlign.Center
+        )
+        if (heard != null) {
             Text(
-                text = "$percent%",
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Spacer(Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { animated },
-                color = color,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium,
-                color = color,
+                text = "услышано: $heard",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
