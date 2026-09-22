@@ -13,15 +13,11 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -65,6 +61,9 @@ import java.util.Locale
 
 private val ButtonHeight = 56.dp
 
+/** Tall enough for the score card, so the buttons never move. */
+private val FeedbackSlotHeight = 140.dp
+
 /**
  * Practices the words at [wordIndices] (indices into [category].words), in order.
  * [onFinished] receives a score (0-100) per practiced word index once the last
@@ -92,6 +91,7 @@ fun PracticeScreen(
     var heardText by remember { mutableStateOf<String?>(null) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
     val results = remember { mutableStateMapOf<Int, Int>() }
+    val heardTexts = remember { mutableStateMapOf<Int, String>() }
 
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsStatus by remember { mutableStateOf<Int?>(null) }
@@ -171,6 +171,18 @@ fun PracticeScreen(
         onDispose { speechRecognizer?.destroy() }
     }
 
+    /** Scores [matches] against the current word and shows the result. */
+    fun acceptMatches(matches: List<String>, confidences: FloatArray?): Boolean {
+        val usable = matches.filter { it.isNotBlank() }
+        if (usable.isEmpty()) return false
+        val score = PronunciationScorer.score(currentWord.english, usable, confidences)
+        resultPercent = score
+        heardText = usable.first()
+        results[wordIndices[position]] = score
+        heardTexts[wordIndices[position]] = usable.first()
+        return true
+    }
+
     fun startListening() {
         val recognizer = speechRecognizer
         if (recognizer == null) {
@@ -182,6 +194,10 @@ fun PracticeScreen(
         heardText = null
         isListening = true
         micLevel = 0f
+        // Short words ("tea", "eye") are often dropped from the final result
+        // while they did appear in a partial one, so the last partial is kept
+        // as a fallback.
+        var lastPartial: List<String> = emptyList()
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {}
             override fun onBeginningOfSpeech() {}
@@ -195,6 +211,12 @@ fun PracticeScreen(
             override fun onError(error: Int) {
                 isListening = false
                 micLevel = 0f
+                if ((error == SpeechRecognizer.ERROR_NO_MATCH ||
+                        error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) &&
+                    acceptMatches(lastPartial, null)
+                ) {
+                    return
+                }
                 statusMessage = when (error) {
                     SpeechRecognizer.ERROR_NO_MATCH -> "Не удалось разобрать слово. Попробуйте ещё раз."
                     SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Вы ничего не сказали. Попробуйте снова."
@@ -215,29 +237,33 @@ fun PracticeScreen(
                 micLevel = 0f
                 val matches = bundleResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?: arrayListOf()
-                if (matches.isEmpty()) {
+                val confidences = bundleResults.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
+                if (!acceptMatches(matches, confidences) && !acceptMatches(lastPartial, null)) {
                     statusMessage = "Речь не распознана. Попробуйте ещё раз."
-                } else {
-                    val confidences =
-                        bundleResults.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
-                    val score = PronunciationScorer.score(
-                        currentWord.english,
-                        matches,
-                        confidences
-                    )
-                    resultPercent = score
-                    heardText = matches.first()
-                    results[wordIndices[position]] = score
                 }
             }
-            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onPartialResults(partialResults: Bundle?) {
+                val partial = partialResults
+                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.filter { it.isNotBlank() }
+                if (!partial.isNullOrEmpty()) lastPartial = partial
+            }
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 8)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
+            // A single short word is otherwise cut off before the engine
+            // decides it heard anything at all.
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1500)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500)
+            putExtra(
+                RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
+                1200
+            )
         }
         recognizer.startListening(intent)
         listenAttempt++
@@ -272,21 +298,36 @@ fun PracticeScreen(
         }
     }
 
-    fun goToNextWord() {
+    /** Moves to [newPosition], restoring whatever that word already scored. */
+    fun showWordAt(newPosition: Int) {
         speechRecognizer?.cancel()
+        ttsEngine?.stop()
         isListening = false
+        isSpeaking = false
         micLevel = 0f
-        if (resultPercent == null) {
-            results[wordIndices[position]] = 0
-        }
+        position = newPosition
+        val wordIndex = wordIndices[newPosition]
+        resultPercent = results[wordIndex]
+        heardText = heardTexts[wordIndex]
+        statusMessage = null
+    }
+
+    fun goToNextWord() {
         if (isLastWord) {
+            speechRecognizer?.cancel()
+            ttsEngine?.stop()
+            isListening = false
+            isSpeaking = false
+            // Words the user skipped never scored, so they count as zero.
+            wordIndices.forEach { index -> if (index !in results) results[index] = 0 }
             onFinished(results.toMap())
         } else {
-            position++
-            resultPercent = null
-            heardText = null
-            statusMessage = null
+            showWordAt(position + 1)
         }
+    }
+
+    fun goToPreviousWord() {
+        if (position > 0) showWordAt(position - 1)
     }
 
     Scaffold(
@@ -337,10 +378,13 @@ fun PracticeScreen(
 
             Spacer(Modifier.height(8.dp))
 
+            // The waveform, the score and any error all live in one slot of a
+            // fixed height: showing a result draws over the wave instead of
+            // pushing the buttons down the screen.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp),
+                    .height(FeedbackSlotHeight),
                 contentAlignment = Alignment.Center
             ) {
                 VoiceWaveform(
@@ -350,30 +394,33 @@ fun PracticeScreen(
                     color = MaterialTheme.colorScheme.primary,
                     accent = MaterialTheme.colorScheme.tertiary
                 )
-            }
 
-            AnimatedVisibility(
-                visible = statusMessage != null,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Text(
-                    text = statusMessage.orEmpty(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                )
-            }
-
-            AnimatedVisibility(
-                visible = resultPercent != null,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                ScoreRow(percent = resultPercent ?: 0, heard = heardText)
+                val score = resultPercent
+                if (score != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ScoreRow(percent = score, heard = heardText)
+                    }
+                } else if (statusMessage != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                        shape = MaterialTheme.shapes.large,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = statusMessage.orEmpty(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                        )
+                    }
+                }
             }
 
             if (!recognitionAvailable) {
@@ -414,13 +461,28 @@ fun PracticeScreen(
                     Text(if (isListening) "🎙  Слушаю вас..." else "🎤  Повторить слово")
                 }
 
-                Button(
-                    onClick = { goToNextWord() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(ButtonHeight)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(if (isLastWord) "Завершить  🏁" else "Следующее слово  →")
+                    FilledTonalButton(
+                        onClick = { goToPreviousWord() },
+                        enabled = position > 0,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(ButtonHeight)
+                    ) {
+                        Text("←  Предыдущее")
+                    }
+
+                    Button(
+                        onClick = { goToNextWord() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(ButtonHeight)
+                    ) {
+                        Text(if (isLastWord) "Завершить  🏁" else "Следующее  →")
+                    }
                 }
             }
 
@@ -481,7 +543,7 @@ private fun ScoreRow(percent: Int, heard: String?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
