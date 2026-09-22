@@ -34,7 +34,9 @@ object PronunciationScorer {
 
     private fun matchQuality(cleanTarget: String, hypothesis: String): Float {
         val spoken = hypothesis.lowercase()
-            .split(Regex("[^\\p{L}]+"))
+            .split(Regex("[^\\p{L}\\p{N}]+"))
+            .filter { it.isNotEmpty() }
+            .map { spellOut(it) }
             .filter { it.isNotEmpty() }
         if (spoken.isEmpty()) return 0f
 
@@ -56,6 +58,39 @@ object PronunciationScorer {
         return best
     }
 
+    /**
+     * The recognizer writes what it heard, not what was meant: a spoken "tea"
+     * comes back as "T" and a spoken "two" as "2". Both are perfect
+     * pronunciations, so the token is turned back into the word it stands for
+     * before anything is compared.
+     */
+    private fun spellOut(token: String): String {
+        NUMBER_WORDS[token]?.let { return it }
+        if (token.length == 1 && token[0].isLetter()) {
+            LETTER_NAMES[token]?.let { return it }
+        }
+        return token.filter { it.isLetter() }
+    }
+
+    private val NUMBER_WORDS = mapOf(
+        "0" to "zero", "1" to "one", "2" to "two", "3" to "three", "4" to "four",
+        "5" to "five", "6" to "six", "7" to "seven", "8" to "eight", "9" to "nine",
+        "10" to "ten", "11" to "eleven", "12" to "twelve", "13" to "thirteen",
+        "14" to "fourteen", "15" to "fifteen", "16" to "sixteen", "17" to "seventeen",
+        "18" to "eighteen", "19" to "nineteen", "20" to "twenty", "30" to "thirty",
+        "40" to "forty", "50" to "fifty", "60" to "sixty", "70" to "seventy",
+        "80" to "eighty", "90" to "ninety", "100" to "hundred", "1000" to "thousand"
+    )
+
+    private val LETTER_NAMES = mapOf(
+        "a" to "ay", "b" to "bee", "c" to "see", "d" to "dee", "e" to "ee",
+        "f" to "ef", "g" to "jee", "h" to "aitch", "i" to "eye", "j" to "jay",
+        "k" to "kay", "l" to "el", "m" to "em", "n" to "en", "o" to "oh",
+        "p" to "pee", "q" to "cue", "r" to "ar", "s" to "ess", "t" to "tea",
+        "u" to "you", "v" to "vee", "w" to "doubleyou", "x" to "ex",
+        "y" to "why", "z" to "zee"
+    )
+
     private fun isHomophone(a: String, b: String) =
         HOMOPHONES.any { group -> a in group && b in group }
 
@@ -64,7 +99,10 @@ object PronunciationScorer {
      * the speaker was perfect, so they must not cost points.
      */
     private val HOMOPHONES = listOf(
-        setOf("son", "sun"), setOf("sea", "see"), setOf("two", "to", "too"),
+        setOf("son", "sun"), setOf("sea", "see", "c"), setOf("two", "to", "too"),
+        setOf("tea", "tee", "t"), setOf("eye", "aye", "i"), setOf("bee", "be", "b"),
+        setOf("you", "ewe", "u"), setOf("queue", "cue", "q"), setOf("why", "y"),
+        setOf("oh", "owe", "o"), setOf("pea", "pee", "p"), setOf("are", "ar", "r"),
         setOf("one", "won"), setOf("eight", "ate"), setOf("hour", "our"),
         setOf("week", "weak"), setOf("meat", "meet"), setOf("night", "knight"),
         setOf("red", "read"), setOf("new", "knew"), setOf("know", "no"),
