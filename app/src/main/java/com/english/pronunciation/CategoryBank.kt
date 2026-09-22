@@ -7,36 +7,36 @@ package com.english.pronunciation
 object CategoryBank {
     val categories = listOf(
         Category(
-            id = "tricky_sounds",
-            title = "Сложные звуки",
-            icon = "🗣️",
+            id = "toys",
+            title = "Игрушки",
+            icon = "🧸",
             words = listOf(
-                Word("apple", "ˈæp.əl", "яблоко", "🍎"),
-                Word("water", "ˈwɔː.tər", "вода", "💧"),
-                Word("squirrel", "ˈskwɪr.əl", "белка", "🐿️"),
-                Word("thumb", "θʌm", "большой палец", "👍"),
-                Word("this", "ðɪs", "это", "👉"),
-                Word("world", "wɜːld", "мир", "🌍"),
-                Word("clothes", "kloʊðz", "одежда", "👕"),
-                Word("vegetable", "ˈvedʒ.tə.bəl", "овощ", "🥦"),
-                Word("weather", "ˈweð.ər", "погода", "🌦️"),
-                Word("wolf", "wʊlf", "волк", "🐺"),
-                Word("hello", "həˈloʊ", "привет", "👋"),
-                Word("comfortable", "ˈkʌmf.tə.bəl", "удобный", "🛋️"),
-                Word("chocolate", "ˈtʃɒk.lət", "шоколад", "🍫"),
-                Word("island", "ˈaɪ.lənd", "остров", "🏝️"),
-                Word("beautiful", "ˈbjuː.tɪ.fəl", "красивый", "🌸"),
-                Word("mountain", "ˈmaʊn.tən", "гора", "⛰️"),
-                Word("umbrella", "ʌmˈbrel.ə", "зонт", "☂️"),
-                Word("bird", "bɜːd", "птица", "🐦"),
-                Word("bridge", "brɪdʒ", "мост", "🌉"),
-                Word("rabbit", "ˈræb.ɪt", "кролик", "🐰")
+                Word("toy", "tɔɪ", "игрушка", "🎁"),
+                Word("doll", "dɒl", "кукла", "🪆"),
+                Word("teddy bear", "ˈtedi beər", "плюшевый мишка", "🧸"),
+                Word("ball", "bɔːl", "мяч", "⚽"),
+                Word("puzzle", "ˈpʌzl", "пазл", "🧩"),
+                Word("blocks", "blɒks", "кубики", "🧱"),
+                Word("robot", "ˈroʊbɒt", "робот", "🤖"),
+                Word("kite", "kaɪt", "воздушный змей", "🪁"),
+                Word("drum", "drʌm", "барабан", "🥁"),
+                Word("balloon", "bəˈluːn", "воздушный шарик", "🎈"),
+                Word("yo-yo", "ˈjoʊjoʊ", "йо-йо", "🪀"),
+                Word("dice", "daɪs", "игральный кубик", "🎲"),
+                Word("crayon", "ˈkreɪɒn", "восковой мелок", "🖍️"),
+                Word("sticker", "ˈstɪkər", "наклейка", "🏷️"),
+                Word("bubble", "ˈbʌbl", "мыльный пузырь", "🫧"),
+                Word("slide", "slaɪd", "горка", "🛝"),
+                Word("sandbox", "ˈsændbɒks", "песочница", "🏖️"),
+                Word("skateboard", "ˈskeɪtbɔːrd", "скейтборд", "🛹"),
+                Word("jump rope", "dʒʌmp roʊp", "скакалка", "🪢"),
+                Word("game", "ɡeɪm", "игра", "🎮")
             )
         ),
         Category(
             id = "city",
             title = "Город",
-            icon = "🏙️",
+            icon = "🌃",
             words = listOf(
                 Word("street", "striːt", "улица", "🛣️"),
                 Word("building", "ˈbɪldɪŋ", "здание", "🏢"),
@@ -63,7 +63,7 @@ object CategoryBank {
         Category(
             id = "family",
             title = "Семья",
-            icon = "👨‍👩‍👧‍👦",
+            icon = "👪",
             words = listOf(
                 Word("mother", "ˈmʌðər", "мама", "👩"),
                 Word("father", "ˈfɑːðər", "папа", "👨"),
@@ -333,7 +333,7 @@ object CategoryBank {
         Category(
             id = "numbers",
             title = "Числа",
-            icon = "🔢",
+            icon = "🧮",
             words = listOf(
                 Word("one", "wʌn", "один", "1️⃣"),
                 Word("two", "tuː", "два", "2️⃣"),
@@ -661,7 +661,7 @@ object CategoryBank {
             words = listOf(
                 Word("medicine", "ˈmedsn", "лекарство", "💊"),
                 Word("pill", "pɪl", "таблетка", "💊"),
-                Word("injection", "ɪnˈdʒekʃn", "укол", "💉"),
+                Word("toothbrush", "ˈtuːθbrʌʃ", "зубная щётка", "🪥"),
                 Word("bandage", "ˈbændɪdʒ", "бинт", "🩹"),
                 Word("thermometer", "θərˈmɒmɪtər", "градусник", "🌡️"),
                 Word("fever", "ˈfiːvər", "жар", "🤒"),
@@ -676,7 +676,7 @@ object CategoryBank {
                 Word("allergy", "ˈælərdʒi", "аллергия", "🤧"),
                 Word("symptom", "ˈsɪmptəm", "симптом", "🩺"),
                 Word("treatment", "ˈtriːtmənt", "лечение", "🏥"),
-                Word("surgery", "ˈsɜːrdʒəri", "операция", "🏥"),
+                Word("healthy", "ˈhelθi", "здоровый", "💪"),
                 Word("recovery", "rɪˈkʌvəri", "выздоровление", "💪"),
                 Word("hospital", "ˈhɒspɪtl", "больница", "🏥")
             )
@@ -764,7 +764,7 @@ object CategoryBank {
         ),
         Category(
             id = "adjectives",
-            title = "Прилагательные",
+            title = "Определения",
             icon = "📏",
             words = listOf(
                 Word("big", "bɪɡ", "большой", "🐘"),
