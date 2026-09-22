@@ -43,7 +43,7 @@ fun CategoryListScreen(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Английское произношение",
+                            text = "SayWord",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
