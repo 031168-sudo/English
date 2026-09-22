@@ -13,10 +13,7 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -398,21 +395,16 @@ fun PracticeScreen(
                     accent = MaterialTheme.colorScheme.tertiary
                 )
 
-                AnimatedVisibility(visible = resultPercent != null, enter = fadeIn(), exit = fadeOut()) {
+                val score = resultPercent
+                if (score != null) {
                     Surface(
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
                         shape = MaterialTheme.shapes.large,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        ScoreRow(percent = resultPercent ?: 0, heard = heardText)
+                        ScoreRow(percent = score, heard = heardText)
                     }
-                }
-
-                AnimatedVisibility(
-                    visible = resultPercent == null && statusMessage != null,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
+                } else if (statusMessage != null) {
                     Surface(
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
                         shape = MaterialTheme.shapes.large,
