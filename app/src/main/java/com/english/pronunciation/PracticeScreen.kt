@@ -472,7 +472,7 @@ fun PracticeScreen(
                             .weight(1f)
                             .height(ButtonHeight)
                     ) {
-                        Text("←  Предыдущее")
+                        Text("←  Назад")
                     }
 
                     Button(
@@ -481,7 +481,7 @@ fun PracticeScreen(
                             .weight(1f)
                             .height(ButtonHeight)
                     ) {
-                        Text(if (isLastWord) "Завершить  🏁" else "Следующее  →")
+                        Text(if (isLastWord) "Завершить  🏁" else "Далее  →")
                     }
                 }
             }
