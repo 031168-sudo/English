@@ -58,6 +58,10 @@ import java.util.Locale
 
 private val ButtonHeight = 52.dp
 
+/** Playback speeds behind the two listen buttons. */
+private const val SlowRate = 0.5f
+private const val FastRate = 1.2f
+
 /** Tall enough for the score card, so the buttons never move. */
 private val FeedbackSlotHeight = 118.dp
 
@@ -107,7 +111,7 @@ fun PracticeScreen(
         }
     }
 
-    fun speakSlowThenFast(word: String) {
+    fun speak(word: String, rate: Float) {
         val engine = ttsEngine
         if (engine == null || ttsStatus == null) {
             statusMessage = "Синтез речи ещё запускается, попробуйте через секунду."
@@ -127,12 +131,7 @@ fun PracticeScreen(
         engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) {}
             override fun onDone(utteranceId: String?) {
-                if (utteranceId == "slow") {
-                    engine.setSpeechRate(1.2f)
-                    engine.speak(word, TextToSpeech.QUEUE_ADD, null, "fast")
-                } else {
-                    mainHandler.post { isSpeaking = false }
-                }
+                mainHandler.post { isSpeaking = false }
             }
             override fun onError(utteranceId: String?) {
                 mainHandler.post {
@@ -141,8 +140,8 @@ fun PracticeScreen(
                 }
             }
         })
-        engine.setSpeechRate(0.5f)
-        if (engine.speak(word, TextToSpeech.QUEUE_FLUSH, null, "slow") == TextToSpeech.ERROR) {
+        engine.setSpeechRate(rate)
+        if (engine.speak(word, TextToSpeech.QUEUE_FLUSH, null, "word") == TextToSpeech.ERROR) {
             isSpeaking = false
             statusMessage = "Не удалось запустить произношение."
             return
@@ -296,14 +295,29 @@ fun PracticeScreen(
                         .padding(horizontal = 20.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    FilledTonalButton(
-                        onClick = { speakSlowThenFast(currentWord.english) },
-                        enabled = !isSpeaking && !isListening,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ButtonHeight)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(if (isSpeaking) "🔊  Произносим..." else "🔊  Слушать (медленно → быстро)")
+                        FilledTonalButton(
+                            onClick = { speak(currentWord.english, SlowRate) },
+                            enabled = !isSpeaking && !isListening,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(ButtonHeight)
+                        ) {
+                            Text("🔈  Медленно")
+                        }
+
+                        FilledTonalButton(
+                            onClick = { speak(currentWord.english, FastRate) },
+                            enabled = !isSpeaking && !isListening,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(ButtonHeight)
+                        ) {
+                            Text("🔊  Быстро")
+                        }
                     }
 
                     Button(
@@ -317,7 +331,7 @@ fun PracticeScreen(
                             when {
                                 isListening -> "🎙  Слушаю вас..."
                                 engineStatus == SpeechEngine.Status.LOADING -> "⏳  Готовим распознавание…"
-                                else -> "🎤  Повторить слово"
+                                else -> "🎤  Произнести слово"
                             }
                         )
                     }
