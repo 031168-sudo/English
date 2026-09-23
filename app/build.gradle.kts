@@ -14,6 +14,13 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        // The speech library ships a native blob per architecture; every phone
+        // this app targets is 64-bit ARM, and shipping only that keeps the APK
+        // from doubling in size.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildFeatures {
@@ -39,5 +46,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    // Offline speech recognition, model and all, bundled into the APK.
+    implementation("com.alphacephei:vosk-android:0.3.47")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

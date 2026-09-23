@@ -1,14 +1,9 @@
 package com.english.pronunciation
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -44,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -98,7 +94,6 @@ fun PracticeScreen(
     var ttsStatus by remember { mutableStateOf<Int?>(null) }
     // Bumped per attempt so a watchdog from an earlier attempt cannot cut a newer one short.
     var speakAttempt by remember { mutableStateOf(0) }
-    var listenAttempt by remember { mutableStateOf(0) }
 
     DisposableEffect(Unit) {
         val engine = TextToSpeech(context) { status ->
@@ -159,24 +154,23 @@ fun PracticeScreen(
         mainHandler.postDelayed({ if (attempt == speakAttempt) isSpeaking = false }, 10_000)
     }
 
-    val speechRecognizer = remember {
-        if (SpeechRecognizer.isRecognitionAvailable(context)) {
-            SpeechRecognizer.createSpeechRecognizer(context)
-        } else {
-            null
-        }
+    var engineStatus by remember { mutableStateOf(SpeechEngine.status) }
+    var session by remember { mutableStateOf<SpeechEngine.Session?>(null) }
+    val recognitionAvailable = engineStatus == SpeechEngine.Status.READY
+
+    LaunchedEffect(Unit) {
+        SpeechEngine.prepare(context) { engineStatus = SpeechEngine.status }
     }
-    val recognitionAvailable = speechRecognizer != null
 
     DisposableEffect(Unit) {
-        onDispose { speechRecognizer?.destroy() }
+        onDispose { session?.stop() }
     }
 
     /** Scores [matches] against the current word and shows the result. */
-    fun acceptMatches(matches: List<String>, confidences: FloatArray?): Boolean {
+    fun acceptMatches(matches: List<String>): Boolean {
         val usable = matches.filter { it.isNotBlank() }
         if (usable.isEmpty()) return false
-        val score = PronunciationScorer.score(currentWord.english, usable, confidences)
+        val score = PronunciationScorer.score(currentWord.english, usable)
         resultPercent = score
         heardText = usable.first()
         results[wordIndices[position]] = score
@@ -185,97 +179,39 @@ fun PracticeScreen(
     }
 
     fun startListening() {
-        val recognizer = speechRecognizer
-        if (recognizer == null) {
-            statusMessage = "На этом устройстве недоступно распознавание речи."
-            return
+        when (engineStatus) {
+            SpeechEngine.Status.LOADING -> {
+                statusMessage = "Распознавание ещё готовится, попробуйте через секунду."
+                return
+            }
+            SpeechEngine.Status.FAILED -> {
+                statusMessage = "Распознавание не запустилось: ${SpeechEngine.failure.orEmpty()}"
+                return
+            }
+            SpeechEngine.Status.READY -> Unit
         }
         statusMessage = null
         resultPercent = null
         heardText = null
         isListening = true
         micLevel = 0f
-        // Short words ("tea", "eye") are often dropped from the final result
-        // while they did appear in a partial one, so the last partial is kept
-        // as a fallback.
-        var lastPartial: List<String> = emptyList()
-        recognizer.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {
-                micLevel = ((rmsdB + 2f) / 12f).coerceIn(0f, 1f)
-            }
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {
-                micLevel = 0f
-            }
-            override fun onError(error: Int) {
+        session = SpeechEngine.listen(
+            onLevel = { level -> micLevel = level },
+            onResult = { matches ->
                 isListening = false
                 micLevel = 0f
-                if ((error == SpeechRecognizer.ERROR_NO_MATCH ||
-                        error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) &&
-                    acceptMatches(lastPartial, null)
-                ) {
-                    return
+                session = null
+                if (!acceptMatches(matches)) {
+                    statusMessage = "Не удалось разобрать слово. Попробуйте ещё раз."
                 }
-                statusMessage = when (error) {
-                    SpeechRecognizer.ERROR_NO_MATCH -> "Не удалось разобрать слово. Попробуйте ещё раз."
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Вы ничего не сказали. Попробуйте снова."
-                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Нет доступа к микрофону."
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Распознаватель занят, попробуйте ещё раз."
-                    SpeechRecognizer.ERROR_AUDIO -> "Не удалось записать звук с микрофона."
-                    SpeechRecognizer.ERROR_CLIENT -> "Распознаватель отказал (ошибка 5)."
-                    SpeechRecognizer.ERROR_SERVER -> "Сервис распознавания вернул ошибку."
-                    SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
-                        "Проблема с сетью при распознавании речи."
-                    // Added in API 33; referenced by value to keep minSdk 26 happy.
-                    12, 13 -> "На устройстве не установлен английский для распознавания речи."
-                    else -> "Ошибка распознавания речи (код $error)."
-                }
-            }
-            override fun onResults(bundleResults: Bundle) {
+            },
+            onError = { message ->
                 isListening = false
                 micLevel = 0f
-                val matches = bundleResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    ?: arrayListOf()
-                val confidences = bundleResults.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
-                if (!acceptMatches(matches, confidences) && !acceptMatches(lastPartial, null)) {
-                    statusMessage = "Речь не распознана. Попробуйте ещё раз."
-                }
+                session = null
+                statusMessage = message
             }
-            override fun onPartialResults(partialResults: Bundle?) {
-                val partial = partialResults
-                    ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    ?.filter { it.isNotBlank() }
-                if (!partial.isNullOrEmpty()) lastPartial = partial
-            }
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 8)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
-            // A single short word is otherwise cut off before the engine
-            // decides it heard anything at all.
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1500)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500)
-            putExtra(
-                RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
-                1200
-            )
-        }
-        recognizer.startListening(intent)
-        listenAttempt++
-        val attempt = listenAttempt
-        mainHandler.postDelayed({
-            if (attempt == listenAttempt && isListening) {
-                isListening = false
-                recognizer.cancel()
-                statusMessage = "Распознаватель не ответил. Попробуйте ещё раз."
-            }
-        }, 15_000)
+        )
     }
 
     val micPermissionLauncher = rememberLauncherForActivityResult(
@@ -301,7 +237,8 @@ fun PracticeScreen(
 
     /** Moves to [newPosition], restoring whatever that word already scored. */
     fun showWordAt(newPosition: Int) {
-        speechRecognizer?.cancel()
+        session?.stop()
+        session = null
         ttsEngine?.stop()
         isListening = false
         isSpeaking = false
@@ -315,7 +252,8 @@ fun PracticeScreen(
 
     fun goToNextWord() {
         if (isLastWord) {
-            speechRecognizer?.cancel()
+            session?.stop()
+        session = null
             ttsEngine?.stop()
             isListening = false
             isSpeaking = false
@@ -375,7 +313,13 @@ fun PracticeScreen(
                             .fillMaxWidth()
                             .height(ButtonHeight)
                     ) {
-                        Text(if (isListening) "🎙  Слушаю вас..." else "🎤  Повторить слово")
+                        Text(
+                            when {
+                                isListening -> "🎙  Слушаю вас..."
+                                engineStatus == SpeechEngine.Status.LOADING -> "⏳  Готовим распознавание…"
+                                else -> "🎤  Повторить слово"
+                            }
+                        )
                     }
 
                     Row(
@@ -483,9 +427,16 @@ fun PracticeScreen(
 
             if (!recognitionAvailable) {
                 Text(
-                    text = "На этом устройстве недоступно распознавание речи.",
+                    text = when (engineStatus) {
+                        SpeechEngine.Status.LOADING -> "Готовим распознавание речи…"
+                        else -> "Распознавание не запустилось: ${SpeechEngine.failure.orEmpty()}"
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = if (engineStatus == SpeechEngine.Status.LOADING) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
