@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -115,6 +117,7 @@ fun SplashScreen(onFinished: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .systemBarsPadding()
                 .padding(32.dp)
                 .alpha(appear.value),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -176,7 +179,8 @@ fun SplashScreen(onFinished: () -> Unit) {
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 28.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp)
         )
     }
 }

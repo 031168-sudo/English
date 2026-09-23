@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -59,10 +60,10 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import java.util.Locale
 
-private val ButtonHeight = 56.dp
+private val ButtonHeight = 52.dp
 
 /** Tall enough for the score card, so the buttons never move. */
-private val FeedbackSlotHeight = 140.dp
+private val FeedbackSlotHeight = 118.dp
 
 /**
  * Practices the words at [wordIndices] (indices into [category].words), in order.
@@ -345,6 +346,63 @@ fun PracticeScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            // Pinned: on a 360 dp phone the card alone fills the screen, and a
+            // scrolling button row ended up under the navigation bar.
+            Surface(tonalElevation = 3.dp) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = { speakSlowThenFast(currentWord.english) },
+                        enabled = !isSpeaking && !isListening,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(ButtonHeight)
+                    ) {
+                        Text(if (isSpeaking) "🔊  Произносим..." else "🔊  Слушать (медленно → быстро)")
+                    }
+
+                    Button(
+                        onClick = { onRepeatClicked() },
+                        enabled = recognitionAvailable && !isSpeaking && !isListening,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(ButtonHeight)
+                    ) {
+                        Text(if (isListening) "🎙  Слушаю вас..." else "🎤  Повторить слово")
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        FilledTonalButton(
+                            onClick = { goToPreviousWord() },
+                            enabled = position > 0,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(ButtonHeight)
+                        ) {
+                            Text("←  Назад")
+                        }
+
+                        Button(
+                            onClick = { goToNextWord() },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(ButtonHeight)
+                        ) {
+                            Text(if (isLastWord) "Завершить  🏁" else "Далее  →")
+                        }
+                    }
+                }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -435,58 +493,6 @@ fun PracticeScreen(
                 )
             }
 
-            Spacer(Modifier.height(4.dp))
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                FilledTonalButton(
-                    onClick = { speakSlowThenFast(currentWord.english) },
-                    enabled = !isSpeaking && !isListening,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(ButtonHeight)
-                ) {
-                    Text(if (isSpeaking) "🔊  Произносим..." else "🔊  Слушать (медленно → быстро)")
-                }
-
-                Button(
-                    onClick = { onRepeatClicked() },
-                    enabled = recognitionAvailable && !isSpeaking && !isListening,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(ButtonHeight)
-                ) {
-                    Text(if (isListening) "🎙  Слушаю вас..." else "🎤  Повторить слово")
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FilledTonalButton(
-                        onClick = { goToPreviousWord() },
-                        enabled = position > 0,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(ButtonHeight)
-                    ) {
-                        Text("←  Назад")
-                    }
-
-                    Button(
-                        onClick = { goToNextWord() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(ButtonHeight)
-                    ) {
-                        Text(if (isLastWord) "Завершить  🏁" else "Далее  →")
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
@@ -497,22 +503,22 @@ private fun WordCard(word: Word) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 18.dp, horizontal = 20.dp),
+                .padding(vertical = 14.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(104.dp)
+                modifier = Modifier.size(88.dp)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = word.emoji, fontSize = 54.sp)
+                    Text(text = word.emoji, fontSize = 46.sp)
                 }
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(10.dp))
             Text(
                 text = word.english,
                 style = MaterialTheme.typography.headlineLarge,
@@ -548,7 +554,7 @@ private fun ScoreRow(percent: Int, heard: String?) {
     ) {
         Text(
             text = "$percent%",
-            style = MaterialTheme.typography.displaySmall,
+            style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = color
         )
