@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,6 +81,11 @@ fun SplashScreen(onFinished: () -> Unit) {
         animationSpec = infiniteRepeatable(tween(5200, easing = LinearEasing)),
         label = "drift"
     )
+
+    // Unpacking the speech model takes a moment; start it here so it is ready
+    // by the time the first word appears.
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { SpeechEngine.prepare(context) { } }
 
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
