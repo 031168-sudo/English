@@ -136,7 +136,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                 contentDescription = "Попугай на ветке",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .size(width = 172.dp, height = 206.dp)
+                    .size(width = 210.dp, height = 252.dp)
                     .graphicsLayer {
                         transformOrigin = TransformOrigin(0.5f, 0.78f)
                         rotationZ = wobble
@@ -144,7 +144,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                     }
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
 
             Text(
                 text = "Учимся говорить\nправильно\nпо-английски",
@@ -155,16 +155,16 @@ fun SplashScreen(onFinished: () -> Unit) {
                 lineHeight = 38.sp
             )
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "30 тем · 600 слов",
+                text = "30 тем · 600 слов · слушай, повторяй, получай процент",
                 color = Color.White.copy(alpha = 0.85f),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
 
             Surface(
                 color = Color.White.copy(alpha = 0.18f),
@@ -179,16 +179,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                text = "речь распознаётся прямо на телефоне,\nничего никуда не отправляется",
-                color = Color.White.copy(alpha = 0.80f),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(28.dp))
 
             Box(
                 modifier = Modifier
