@@ -53,6 +53,12 @@ object SpeechEngine {
     @Volatile
     private var model: Model? = null
 
+    @Volatile
+    private var modelDir: File? = null
+
+    private var vocabulary: Set<String>? = null
+    private var vocabularyChecked = false
+
     private var loadStarted = false
     private val main = Handler(Looper.getMainLooper())
 
@@ -73,6 +79,7 @@ object SpeechEngine {
                 LibVosk.setLogLevel(LogLevel.WARNINGS)
                 val dir = unpackModel(appContext)
                 model = Model(dir.absolutePath)
+                modelDir = dir
                 status = Status.READY
             } catch (t: Throwable) {
                 Log.e(TAG, "model failed to load", t)
@@ -100,6 +107,35 @@ object SpeechEngine {
         val session = Recording(loaded, onLevel, onResult, onError)
         session.start()
         return Session { session.requestStop() }
+    }
+
+    /**
+     * Whether the model can recognise every word of [phrase] at all. A word it
+     * has never heard of cannot be "heard" however well it is said, so the
+     * score would be unfairly low. Null when the model does not ship a word
+     * list or is not unpacked yet. Reads a file on first use: call it off the
+     * main thread.
+     */
+    fun knowsWords(phrase: String): Boolean? {
+        val words = loadVocabulary() ?: return null
+        return phrase.lowercase().split(' ').filter { it.isNotBlank() }.all { it in words }
+    }
+
+    @Synchronized
+    private fun loadVocabulary(): Set<String>? {
+        if (vocabularyChecked) return vocabulary
+        val dir = modelDir ?: return null
+        vocabularyChecked = true
+        val file = File(dir, "graph/words.txt")
+        if (!file.isFile) return null
+        vocabulary = runCatching {
+            file.useLines { lines ->
+                lines.map { it.substringBefore(' ').lowercase() }
+                    .filter { it.isNotEmpty() && !it.startsWith("<") && !it.startsWith("#") }
+                    .toHashSet()
+            }
+        }.getOrNull()
+        return vocabulary
     }
 
     /** Handle for the caller: cancelling is the only thing it needs to do. */

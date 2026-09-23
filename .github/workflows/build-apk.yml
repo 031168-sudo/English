@@ -30,6 +30,7 @@ jobs:
           mkdir -p app/src/main/assets
           mv vosk-model-small-en-us-0.15 app/src/main/assets/model-en-us
           du -sh app/src/main/assets/model-en-us
+          ls -la app/src/main/assets/model-en-us/graph
 
       - name: Build debug APK
         run: gradle assembleDebug

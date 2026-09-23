@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 private sealed class Screen {
     object Splash : Screen()
     object CategoryList : Screen()
+    object MyWords : Screen()
     data class Practice(val category: Category, val wordIndices: List<Int>) : Screen()
     data class Summary(
         val category: Category,
@@ -31,6 +32,7 @@ class MainActivity : ComponentActivity() {
         // or not; this is what makes the window insets reach Compose, so the
         // screens can pad for the status and navigation bars.
         enableEdgeToEdge()
+        MyWordsStore.load(this)
         setContent {
             PronunciationTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -52,8 +54,21 @@ private fun PronunciationTrainerApp() {
         is Screen.CategoryList -> {
             CategoryListScreen(
                 categories = CategoryBank.categories,
+                myWordsCount = MyWordsStore.words.size,
+                onMyWords = { screen = Screen.MyWords },
                 onCategorySelected = { category ->
                     screen = Screen.Practice(category, category.words.indices.toList())
+                }
+            )
+        }
+        is Screen.MyWords -> {
+            MyWordsScreen(
+                onBack = { screen = Screen.CategoryList },
+                onPractice = {
+                    val category = MyWordsStore.category()
+                    if (category.words.isNotEmpty()) {
+                        screen = Screen.Practice(category, category.words.indices.toList())
+                    }
                 }
             )
         }
@@ -64,7 +79,7 @@ private fun PronunciationTrainerApp() {
                 onFinished = { results ->
                     screen = Screen.Summary(current.category, current.wordIndices, results)
                 },
-                onExit = { screen = Screen.CategoryList }
+                onExit = { screen = homeFor(current.category) }
             )
         }
         is Screen.Summary -> {
@@ -79,8 +94,12 @@ private fun PronunciationTrainerApp() {
                     val mistakes = current.wordIndices.filter { (current.results[it] ?: 0) < 100 }
                     screen = Screen.Practice(current.category, mistakes)
                 },
-                onBackToCategories = { screen = Screen.CategoryList }
+                onBackToCategories = { screen = homeFor(current.category) }
             )
         }
     }
 }
+
+/** Leaving a block returns to where it was started from. */
+private fun homeFor(category: Category): Screen =
+    if (category.id == MyWordsStore.CATEGORY_ID) Screen.MyWords else Screen.CategoryList
