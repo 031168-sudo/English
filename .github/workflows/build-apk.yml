@@ -21,6 +21,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10"
+      - name: Fetch the offline speech model
+        run: |
+          set -eu
+          url=https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
+          curl -fsSL --retry 3 --retry-delay 5 -o model.zip "$url"
+          unzip -q model.zip
+          mkdir -p app/src/main/assets
+          mv vosk-model-small-en-us-0.15 app/src/main/assets/model-en-us
+          du -sh app/src/main/assets/model-en-us
+
       - name: Build debug APK
         run: gradle assembleDebug
       - name: Upload APK
