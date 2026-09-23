@@ -12,6 +12,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -299,25 +301,19 @@ fun PracticeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        FilledTonalButton(
+                        SpeedButton(
+                            label = "🔈 Медленно",
+                            enabled = !isSpeaking && !isListening,
                             onClick = { speak(currentWord.english, SlowRate) },
-                            enabled = !isSpeaking && !isListening,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(ButtonHeight)
-                        ) {
-                            Text("🔈  Медленно")
-                        }
+                            modifier = Modifier.weight(1f)
+                        )
 
-                        FilledTonalButton(
-                            onClick = { speak(currentWord.english, FastRate) },
+                        SpeedButton(
+                            label = "🔊 Быстро",
                             enabled = !isSpeaking && !isListening,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(ButtonHeight)
-                        ) {
-                            Text("🔊  Быстро")
-                        }
+                            onClick = { speak(currentWord.english, FastRate) },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
                     Button(
@@ -459,6 +455,33 @@ fun PracticeScreen(
             }
 
         }
+    }
+}
+
+/**
+ * Half-width listen button. The default 24 dp side padding leaves too little
+ * room on a 360 dp phone with a large system font, and "Медленно" wrapped onto
+ * a second line that the button then clipped; this keeps it to one line.
+ */
+@Composable
+private fun SpeedButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(horizontal = 10.dp),
+        modifier = modifier.height(ButtonHeight)
+    ) {
+        Text(
+            text = label,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
