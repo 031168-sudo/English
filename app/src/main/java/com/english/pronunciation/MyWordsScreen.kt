@@ -336,7 +336,6 @@ private fun AddWordScreen(
     var dictionaryReady by remember { mutableStateOf(Dictionary.isReady) }
     var entry by remember { mutableStateOf(Dictionary.Entry(null, emptyList())) }
     var suggestions by remember { mutableStateOf(emptyList<String>()) }
-    var recognisable by remember { mutableStateOf<Boolean?>(null) }
     var speechUnavailable by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -354,10 +353,9 @@ private fun AddWordScreen(
     val canSave = key.isNotEmpty() && formatError == null && !duplicate
 
     // Exact lookups are instant and follow every keystroke; the slower
-    // "may be…" search and the recogniser check wait for a pause in typing.
+    // "may be…" search waits for a pause in typing.
     LaunchedEffect(key, dictionaryReady) {
         suggestions = emptyList()
-        recognisable = null
         if (key.isEmpty() || formatError != null) {
             entry = Dictionary.Entry(null, emptyList())
             return@LaunchedEffect
@@ -367,7 +365,6 @@ private fun AddWordScreen(
         if (!transcriptionEdited) transcription = found.transcription.orEmpty()
         if (!russianEdited) russian = found.translations.firstOrNull().orEmpty()
         delay(350)
-        recognisable = withContext(Dispatchers.IO) { SpeechEngine.knowsWords(key) }
         if (!found.known && dictionaryReady) {
             suggestions = withContext(Dispatchers.Default) { Dictionary.suggest(key) }
         }
@@ -472,14 +469,6 @@ private fun AddWordScreen(
                 }
             }
 
-            if (recognisable == false) {
-                Text(
-                    text = "⚠ Распознаватель речи не знает этого слова — оценка будет ниже, " +
-                        "чем заслуживает произношение.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = WarningColor
-                )
-            }
             if (speechUnavailable) {
                 Text(
                     text = "Синтез речи пока недоступен — попробуйте через секунду.",
