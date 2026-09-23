@@ -10,6 +10,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -90,7 +92,7 @@ fun SplashScreen(onFinished: () -> Unit) {
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         appear.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
-        delay(2000)
+        delay(6000)
         onFinished()
     }
 
@@ -134,7 +136,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                 contentDescription = "Попугай на ветке",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
-                    .size(width = 210.dp, height = 252.dp)
+                    .size(width = 172.dp, height = 206.dp)
                     .graphicsLayer {
                         transformOrigin = TransformOrigin(0.5f, 0.78f)
                         rotationZ = wobble
@@ -142,7 +144,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                     }
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
             Text(
                 text = "Учимся говорить\nправильно\nпо-английски",
@@ -153,16 +155,40 @@ fun SplashScreen(onFinished: () -> Unit) {
                 lineHeight = 38.sp
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
             Text(
-                text = "30 тем · 600 слов · слушай, повторяй, получай процент",
+                text = "30 тем · 600 слов",
                 color = Color.White.copy(alpha = 0.85f),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(36.dp))
+            Spacer(Modifier.height(14.dp))
+
+            Surface(
+                color = Color.White.copy(alpha = 0.18f),
+                shape = RoundedCornerShape(50)
+            ) {
+                Text(
+                    text = "✈  Работает без интернета",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp)
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = "речь распознаётся прямо на телефоне,\nничего никуда не отправляется",
+                color = Color.White.copy(alpha = 0.80f),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(20.dp))
 
             Box(
                 modifier = Modifier
