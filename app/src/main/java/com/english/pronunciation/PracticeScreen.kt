@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -301,14 +302,14 @@ fun PracticeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        SpeedButton(
+                        HalfButton(
                             label = "🔈 Медленно",
                             enabled = !isSpeaking && !isListening,
                             onClick = { speak(currentWord.english, SlowRate) },
                             modifier = Modifier.weight(1f)
                         )
 
-                        SpeedButton(
+                        HalfButton(
                             label = "🔊 Быстро",
                             enabled = !isSpeaking && !isListening,
                             onClick = { speak(currentWord.english, FastRate) },
@@ -336,24 +337,19 @@ fun PracticeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        FilledTonalButton(
-                            onClick = { goToPreviousWord() },
+                        HalfButton(
+                            label = "← Назад",
                             enabled = position > 0,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(ButtonHeight)
-                        ) {
-                            Text("←  Назад")
-                        }
+                            onClick = { goToPreviousWord() },
+                            modifier = Modifier.weight(1f)
+                        )
 
-                        Button(
+                        HalfButton(
+                            label = if (isLastWord) "🏁 Завершить" else "Далее →",
+                            filled = true,
                             onClick = { goToNextWord() },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(ButtonHeight)
-                        ) {
-                            Text(if (isLastWord) "Завершить  🏁" else "Далее  →")
-                        }
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
@@ -459,28 +455,42 @@ fun PracticeScreen(
 }
 
 /**
- * Half-width listen button. The default 24 dp side padding leaves too little
- * room on a 360 dp phone with a large system font, and "Медленно" wrapped onto
- * a second line that the button then clipped; this keeps it to one line.
+ * A half-width button. The default 24 dp side padding leaves too little room
+ * on a 360 dp phone with a large system font — "Медленно" and "Завершить 🏁"
+ * both wrapped onto a second line — so the label is kept to one line.
  */
 @Composable
-private fun SpeedButton(
+private fun HalfButton(
     label: String,
-    enabled: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    filled: Boolean = false
 ) {
-    FilledTonalButton(
-        onClick = onClick,
-        enabled = enabled,
-        contentPadding = PaddingValues(horizontal = 10.dp),
-        modifier = modifier.height(ButtonHeight)
-    ) {
+    val content: @Composable RowScope.() -> Unit = {
         Text(
             text = label,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis
+        )
+    }
+    val padding = PaddingValues(horizontal = 10.dp)
+    if (filled) {
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            contentPadding = padding,
+            modifier = modifier.height(ButtonHeight),
+            content = content
+        )
+    } else {
+        FilledTonalButton(
+            onClick = onClick,
+            enabled = enabled,
+            contentPadding = padding,
+            modifier = modifier.height(ButtonHeight),
+            content = content
         )
     }
 }
