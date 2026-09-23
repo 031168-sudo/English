@@ -35,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ElevatedCard
@@ -99,6 +100,7 @@ fun MyWordsScreen(onBack: () -> Unit, onPractice: () -> Unit) {
     val context = LocalContext.current
     val speaker = rememberSpeaker()
     var adding by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Word?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -106,12 +108,25 @@ fun MyWordsScreen(onBack: () -> Unit, onPractice: () -> Unit) {
     LaunchedEffect(Unit) { Dictionary.prepare(context) { } }
 
     if (adding) {
-        AddWordScreen(
+        WordEditorScreen(
+            original = null,
             speak = speaker::speak,
             onCancel = { adding = false },
             onSave = { word ->
                 MyWordsStore.add(context, word)
                 adding = false
+            }
+        )
+        return
+    }
+    editing?.let { original ->
+        WordEditorScreen(
+            original = original,
+            speak = speaker::speak,
+            onCancel = { editing = null },
+            onSave = { word ->
+                MyWordsStore.replace(context, original, word)
+                editing = null
             }
         )
         return
@@ -217,6 +232,7 @@ fun MyWordsScreen(onBack: () -> Unit, onPractice: () -> Unit) {
                 items(MyWordsStore.words, key = { it.english }) { word ->
                     MyWordRow(
                         word = word,
+                        onEdit = { editing = word },
                         onDelete = {
                             val index = MyWordsStore.remove(context, word)
                             scope.launch {
@@ -251,7 +267,7 @@ private fun OneLine(text: String) {
 }
 
 @Composable
-private fun MyWordRow(word: Word, onDelete: () -> Unit) {
+private fun MyWordRow(word: Word, onEdit: () -> Unit, onDelete: () -> Unit) {
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
@@ -288,6 +304,13 @@ private fun MyWordRow(word: Word, onDelete: () -> Unit) {
                     )
                 }
             }
+            IconButton(onClick = onEdit) {
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = "Изменить ${word.english}",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Filled.Delete,
@@ -314,24 +337,30 @@ private fun DictionaryCredits() {
     )
 }
 
-// --------------------------------------------------------------- add a word
+// ------------------------------------------------------- add or edit a word
 
+/**
+ * Adds a word, or edits [original] when it is given: the same screen, opened
+ * with the saved values in place.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun AddWordScreen(
+private fun WordEditorScreen(
+    original: Word?,
     speak: (String) -> Boolean,
     onCancel: () -> Unit,
     onSave: (Word) -> Unit
 ) {
     BackHandler(onBack = onCancel)
     val context = LocalContext.current
+    val originalKey = original?.let { Dictionary.normalise(it.english) }
 
-    var english by remember { mutableStateOf("") }
-    var transcription by remember { mutableStateOf("") }
+    var english by remember { mutableStateOf(original?.english.orEmpty()) }
+    var transcription by remember { mutableStateOf(original?.transcription.orEmpty()) }
     var transcriptionEdited by remember { mutableStateOf(false) }
-    var russian by remember { mutableStateOf("") }
+    var russian by remember { mutableStateOf(original?.russian.orEmpty()) }
     var russianEdited by remember { mutableStateOf(false) }
-    var emoji by remember { mutableStateOf(MyWordsStore.DEFAULT_EMOJI) }
+    var emoji by remember { mutableStateOf(original?.emoji ?: MyWordsStore.DEFAULT_EMOJI) }
 
     var dictionaryReady by remember { mutableStateOf(Dictionary.isReady) }
     var entry by remember { mutableStateOf(Dictionary.Entry(null, emptyList())) }
@@ -349,7 +378,9 @@ private fun AddWordScreen(
         key.split(' ').size > 3 -> "Не больше трёх слов"
         else -> null
     }
-    val duplicate = key.isNotEmpty() && formatError == null && MyWordsStore.contains(key)
+    // The word being edited does not clash with itself.
+    val duplicate = key.isNotEmpty() && formatError == null && key != originalKey &&
+        MyWordsStore.contains(key)
     val canSave = key.isNotEmpty() && formatError == null && !duplicate
 
     // Exact lookups are instant and follow every keystroke; the slower
@@ -362,8 +393,12 @@ private fun AddWordScreen(
         }
         val found = Dictionary.lookup(key)
         entry = found
-        if (!transcriptionEdited) transcription = found.transcription.orEmpty()
-        if (!russianEdited) russian = found.translations.firstOrNull().orEmpty()
+        // Opening a saved word must not overwrite what was saved; the
+        // dictionary only fills in again once the English word is changed.
+        if (key != originalKey) {
+            if (!transcriptionEdited) transcription = found.transcription.orEmpty()
+            if (!russianEdited) russian = found.translations.firstOrNull().orEmpty()
+        }
         delay(350)
         if (!found.known && dictionaryReady) {
             suggestions = withContext(Dispatchers.Default) { Dictionary.suggest(key) }
@@ -373,7 +408,12 @@ private fun AddWordScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Новое слово", style = MaterialTheme.typography.titleMedium) },
+                title = {
+                    Text(
+                        text = if (original == null) "Новое слово" else "Изменить слово",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onCancel) {
                         Icon(Icons.Filled.Close, contentDescription = "Отмена")
@@ -489,7 +529,7 @@ private fun AddWordScreen(
                     Text(
                         when {
                             transcription.isBlank() -> "Можно оставить пустой"
-                            !transcriptionEdited && entry.transcription != null -> "Из словаря"
+                            transcription == entry.transcription -> "Из словаря"
                             else -> ""
                         }
                     )

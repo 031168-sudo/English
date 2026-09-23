@@ -60,6 +60,13 @@ object MyWordsStore {
         save(context)
     }
 
+    /** Puts [updated] where [original] was, keeping the list order. */
+    fun replace(context: Context, original: Word, updated: Word) {
+        val index = words.indexOf(original)
+        if (index >= 0) words[index] = updated else words.add(0, updated)
+        save(context)
+    }
+
     /** Removes [word] and returns where it was, so it can be put back. */
     fun remove(context: Context, word: Word): Int {
         val index = words.indexOf(word)
