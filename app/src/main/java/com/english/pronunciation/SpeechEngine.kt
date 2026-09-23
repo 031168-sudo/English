@@ -53,6 +53,7 @@ object SpeechEngine {
     @Volatile
     private var model: Model? = null
 
+
     private var loadStarted = false
     private val main = Handler(Looper.getMainLooper())
 

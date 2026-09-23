@@ -513,19 +513,24 @@ private fun WordCard(word: Word) {
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )
-            Text(
-                text = "/${word.transcription}/",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = word.russian,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
+            // Words the user added may come without either line.
+            if (word.transcription.isNotBlank()) {
+                Text(
+                    text = "/${word.transcription}/",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center
+                )
+            }
+            if (word.russian.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = word.russian,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
