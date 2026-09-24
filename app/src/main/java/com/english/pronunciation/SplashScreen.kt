@@ -10,7 +10,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,7 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -158,28 +156,14 @@ fun SplashScreen(onFinished: () -> Unit) {
             Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "30 тем · 600 слов · слушай, повторяй, получай процент",
+                text = "30 тем · 600 слов · слушай, повторяй, получай процент, " +
+                    "работает без интернета, американский английский",
                 color = Color.White.copy(alpha = 0.85f),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(16.dp))
-
-            Surface(
-                color = Color.White.copy(alpha = 0.18f),
-                shape = RoundedCornerShape(50)
-            ) {
-                Text(
-                    text = "✈  Работает без интернета",
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp)
-                )
-            }
-
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(36.dp))
 
             Box(
                 modifier = Modifier
