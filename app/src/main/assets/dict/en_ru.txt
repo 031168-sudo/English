@@ -601,7 +601,7 @@ aggressor	агрессор|захватчик|захватчица
 agile	подвижной|проворный|вёрткий
 agility	проворство|поворотливость
 aging	старение
-agio	лаж|ажио
+agio	ажио
 agitate	волновать|взволновать|взбудоражить
 agitated	взволнованный
 agitation	волнение|возбуждение|беспокойство
@@ -1753,7 +1753,6 @@ aspirations	требование|чаяние
 aspire	стремиться|претендовать|метить
 aspirin	аспирин
 asquint	косо
-ass	осёл|ишак
 assassinate	убить|убивать
 assassination	убийство
 assault	приступ|штурм|атака
@@ -2475,7 +2474,6 @@ bast	лыко|луб|мочало
 bast sandal	лапоть
 bast shoe	лапоть
 bast-basket	лукошко
-bastard	сволочь
 baste	метать|метнуть|смётка
 basting	намётка
 bastion	бастион
@@ -4115,7 +4113,7 @@ break open	взломать
 break out	разразиться|вспыхнуть|выбиться
 break the seal	распечатать
 break through	прошибить|ломить|взломать
-break up	расстаться|разбиться|взломать
+break up	расстаться|порвать|разбиться
 break up with	расставаться
 break-away	откол|отпадение
 break-down	изнеможение
@@ -6119,9 +6117,6 @@ cocci	кокк
 coccyx	копчик
 cochineal	кошениль
 cochlea	улитка
-cock	петух|самец
-cock an ear	прислушиваться|прислушаться
-cock sparrow	вояка
 cock-a-doodle-doo	кукареку
 cock-an-bull story	россказни
 cock-and-bull story	басня|небылица
@@ -7411,7 +7406,6 @@ crank	чудак|психопат|мотыль
 cranked	коленчатый
 crankiness	чудачество|валкость
 crankshaft	кривошип
-crap	лаж|хрень
 crape	флёр|креп
 crash	грохот|треск|крах
 crash down	рухнуть|загреметь|грохнуться
@@ -17404,7 +17398,6 @@ khutor	хутор
 kibitka	кибитка
 kick	пинок|пнуть|пинать
 kick aside	отшвырнуть
-kick ass	порвать
 kick out	выгнать|выбить|выбивать
 kick stroke	удар
 kick the bucket	загибаться|подыхать
@@ -17981,7 +17974,6 @@ lazily	лениво
 laziness	лень|леность
 lazurite	лазурит
 lazy	ленивый
-lazy ass	лентяй
 lazy person	лентяй|лентяйка
 lazy-bones	лентяй|лоботряс|лежебока
 lazybones	бездельник|байбак|бездельница
@@ -18731,7 +18723,6 @@ loose	просторный|слабый|рыхлый
 loose discipline	разболтанность
 loose leaf	вкладыш
 loose overall	балахон
-loose woman	блудница
 loose-fitting	свободный
 loose-leaf binder	скоросшиватель
 loosen	ослабить|распустить|распускать
@@ -23289,7 +23280,6 @@ penetration	проникновение|догадливость
 penguin	пингвин
 penicillin	пенициллин
 peninsula	полуостров
-penis	член|писюн
 penitence	покаяние
 penitent	исповедник
 penitential	покаянный
@@ -25063,7 +25053,6 @@ prosperous	достаточный|зажиточный|преуспевающи�
 prostate	простата
 prosthetic appliance	протез
 prosthetist	протезист
-prostitute	проститутка
 prostitution	проституция
 prostration	прострация
 prosy	прозаический
@@ -27957,7 +27946,7 @@ scullery-maid	судомойка
 sculptor	скульптор|ваятель
 sculptural	скульптурный
 sculpture	скульптура|изваяние|ваяние
-scum	сволочь|пена|мразь
+scum	пена|мразь|нечисть
 scumbag	подонок|отморозок
 scummy	гнусный
 scurf	перхоть
@@ -28570,7 +28559,6 @@ sewerage	канализация
 sewing	шитьё|швейный|пошивка
 sewing together	сшивание
 sewing-machine	машинка
-sex	пол|секс|половой
 sexennial	шестилетний
 sexism	сексизм
 sexist	сексист|сексистка
@@ -28580,7 +28568,6 @@ sexology	сексология
 sextant	секстант
 sextet	секстет
 sexton	пономарь|дьячок|псаломщик
-sexual	сексуальный|половой
 sexuality	сексуальность|чувственность
 sexy	чувственный|пикантный
 shabby	потёртый|облезлый|поношенный
@@ -29487,7 +29474,6 @@ slur over	замазать
 slurring	смазывание
 slush	жижа|слякоть|распутица
 slushy	слякотный
-slut	неряха|грязнуля|грязнуха
 sly	хитрый|лукавый
 sly-boots	проныра
 slyboots	хитрец|лукавец
@@ -31026,7 +31012,7 @@ street theatre	зрелище
 street urinal	писсуар
 street-car	трамвай
 street-organ	шарманка
-street-walker	проститутка|гулящий
+street-walker	гулящий
 strelets	стрелец
 strength	крепость|численность|прочность
 strengthen	укрепить|усиливать|усилить
@@ -31323,7 +31309,6 @@ sucking	сосание
 sucking-pig	поросёнок|поросятина
 suckle	кормить|накормить|покормить
 suckling	сосунок|сосун
-sucks	лаж
 suction	всасывание|отсасывание|сосание
 suctorial	сосущий
 sudanese	суданец|суданка
@@ -31679,7 +31664,7 @@ swimming trunks	трусики
 swimsuit	купальник|плавки
 swindle	мошенничество|обмануть|обманывать
 swindler	мошенник|жулик|аферист
-swine	свинья|сволочь|хрюшка
+swine	свинья|хрюшка
 swine-breeding	свиноводство
 swine-herd	свинопас
 swing	размах|размахивать|повернуть
@@ -34510,7 +34495,6 @@ vacuum flask	термос
 vacuum pump	вакуум-насос
 vagaries	выкрутасы
 vagary	выверт|причуда
-vagina	влагалище|вагина
 vagrancy	бродяжничество
 vagrant	бродяга|бродячий
 vague	неясный|смутный|расплывчатый
@@ -35556,7 +35540,6 @@ wholesomely	здорово
 wholesomeness	благотворность
 wholly	целиком|всецело
 whooping	гиканье
-whore	блудница
 whortleberries	черника
 whortleberry	черника
 whortleberry-bush	черника
