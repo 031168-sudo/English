@@ -9,17 +9,46 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.english.pronunciation"
+        // The store identity: once published it can never change, or every
+        // install becomes a different app and loses its data.
+        applicationId = "ru.sayword.english"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // Every upload to a store needs a higher versionCode; CI numbers its
+        // runs, so each build it makes is newer than the last.
+        val build = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = build
+        versionName = "1.0.$build"
 
         // The speech library ships a native blob per architecture; every phone
         // this app targets is 64-bit ARM, and shipping only that keeps the APK
         // from doubling in size.
         ndk {
             abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    // The release key never lives in the repository: CI decodes it from the
+    // repository secrets into a temporary file and passes its path in here.
+    val releaseKeystore = System.getenv("SIGNING_STORE_FILE")
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Shrinking is off: the speech library reaches its native code
+            // through JNA reflection, which R8 would strip without rules
+            // that could only be verified on a device.
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 
