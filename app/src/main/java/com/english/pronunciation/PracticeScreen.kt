@@ -281,7 +281,7 @@ fun PracticeScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onExit) {
+                    IconButton(onClick = onExit, enabled = !isListening) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "К категориям")
                     }
                 }
@@ -339,7 +339,7 @@ fun PracticeScreen(
                     ) {
                         HalfButton(
                             label = "← Назад",
-                            enabled = position > 0,
+                            enabled = position > 0 && !isListening,
                             onClick = { goToPreviousWord() },
                             modifier = Modifier.weight(1f)
                         )
@@ -347,6 +347,7 @@ fun PracticeScreen(
                         HalfButton(
                             label = if (isLastWord) "🏁 Завершить" else "Далее →",
                             filled = true,
+                            enabled = !isListening,
                             onClick = { goToNextWord() },
                             modifier = Modifier.weight(1f)
                         )
