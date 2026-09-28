@@ -4,11 +4,14 @@ Builds the two offline dictionaries the "Мои слова" editor uses:
 
   app/src/main/assets/dict/en_ipa.txt   word <TAB> IPA transcription
   app/src/main/assets/dict/en_ru.txt    word <TAB> перевод|перевод|перевод
+  app/src/main/assets/dict/ru_en.txt    слово <TAB> rank <TAB> word|word|word
 
 Sources (downloaded when not already present in --src):
   * CMU Pronouncing Dictionary (BSD-style licence) — ARPAbet, converted to IPA.
   * OpenRussian dictionary data (CC BY-SA 4.0) — Russian→English, inverted here.
     Rows are ordered by frequency, which is what ranks the translations.
+    The Russian side is also kept as it is, so a word can be typed in Russian;
+    its rank orders the "может быть…" guesses for a misspelt Russian word.
 
 Run from the repository root:  python3 tools/build_dictionaries.py
 """
@@ -32,6 +35,15 @@ NEVER_SUGGEST = {
     "кобель", "сука", "сучка", "шлюха", "задница", "жопа", "сиська", "титька",
     "трах", "блядь", "бля", "дерьмо", "говно", "херня", "хрен", "мудак",
     "срать", "ссать", "пердеть", "сраный", "хер", "потаскуха",
+    "писюн", "хрень", "проститутка", "блудница", "сволочь", "вагина",
+    "влагалище", "лаж", "секс",
+}
+# The same on the English side: a sense containing one of these words is
+# dropped in both directions ("петух" still gives "rooster", not "cock").
+NEVER_SUGGEST_EN = {
+    "ass", "arse", "bitch", "bastard", "cock", "crap", "cunt", "dick", "fuck",
+    "fucking", "penis", "piss", "prostitute", "sex", "sexual", "shit", "slut",
+    "sucks", "vagina", "whore",
 }
 
 # ---------------------------------------------------------------- ARPAbet → IPA
@@ -164,7 +176,8 @@ def english_terms(field):
         t = re.sub(r"^to ", "", t)                 # verbs: "to go" -> "go"
         t = re.sub(r"^(a|an|the) ", "", t)
         t = re.sub(r"\s+", " ", t).strip(" .!?*'\"")
-        if t and WORD_RE.match(t) and len(t.split()) <= 3:
+        if t and WORD_RE.match(t) and len(t.split()) <= 3 \
+                and not NEVER_SUGGEST_EN.intersection(t.split()):
             terms.append(t)
     return terms
 
@@ -197,6 +210,45 @@ def build_translations(src):
     return table
 
 
+def ru_key(word):
+    """What the app looks a Russian word up by: lower case, ё spelt е."""
+    return re.sub(r"\s+", " ", word.strip().lower().replace("ё", "е"))
+
+
+def build_reverse(src, ipa):
+    # Russian -> English, for words typed in Russian. Every common enough row
+    # counts (the same cut-offs as above); only English answers the app can
+    # transcribe are kept, best sense first, at most 4. A spelling shared by
+    # two rows (стекло the noun and the verb) keeps the more frequent one's
+    # rank and both rows' senses.
+    rows_out = {}
+    csv.field_size_limit(10 ** 9)
+    for name in OR_FILES:
+        path = fetch(src, "ru_" + name, OR_BASE + name)
+        with open(path, encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh, delimiter="\t"))
+        for rank, row in enumerate(rows):
+            percentile = rank / max(len(rows), 1)
+            if percentile > MAX_PERCENTILE[name]:
+                break
+            ru = (row.get("bare") or "").strip()
+            if not ru or not re.fullmatch(r"[а-яё -]+", ru.lower()) or ru.lower() in NEVER_SUGGEST:
+                continue
+            terms = [t for t in english_terms(row.get("translations_en") or "")
+                     if all(part in ipa for part in t.split())]
+            if not terms:
+                continue
+            score = int((percentile + FILE_PENALTY[name]) * 100000)
+            key = ru_key(ru)
+            old = rows_out.get(key)
+            if old is None:
+                rows_out[key] = [score, ru.lower(), terms]
+            else:
+                old[0] = min(old[0], score)
+                old[2] += [t for t in terms if t not in old[2]]
+    return {k: (score, word, terms[:4]) for k, (score, word, terms) in rows_out.items()}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default="build/dict-src")
@@ -207,6 +259,7 @@ def main():
 
     ipa = build_ipa(fetch(args.src, "cmudict.dict", CMU_URL))
     translations = build_translations(args.src)
+    reverse = build_reverse(args.src, ipa)
 
     with open(os.path.join(args.out, "en_ipa.txt"), "w", encoding="utf-8") as fh:
         for word in sorted(ipa):
@@ -214,7 +267,14 @@ def main():
     with open(os.path.join(args.out, "en_ru.txt"), "w", encoding="utf-8") as fh:
         for word in sorted(translations):
             fh.write(f"{word}\t{'|'.join(translations[word])}\n")
-    print(f"en_ipa: {len(ipa)} words, en_ru: {len(translations)} words", file=sys.stderr)
+    with open(os.path.join(args.out, "ru_en.txt"), "w", encoding="utf-8") as fh:
+        # The key is the spelling the app searches by; the rank and the word
+        # as it is written (with ё) come first in the value.
+        for key in sorted(reverse):
+            score, word, terms = reverse[key]
+            fh.write(f"{key}\t{score}\t{word}\t{'|'.join(terms)}\n")
+    print(f"en_ipa: {len(ipa)} words, en_ru: {len(translations)} words, "
+          f"ru_en: {len(reverse)} words", file=sys.stderr)
 
 
 if __name__ == "__main__":

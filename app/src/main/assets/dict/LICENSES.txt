@@ -55,3 +55,15 @@ English→Russian word list, ranked by frequency, limited to three
 translations per word, and filtered of vulgar words, by
 tools/build_dictionaries.py. This derived file is itself available under
 CC BY-SA 4.0. The data is provided as-is, without warranties.
+
+
+ru_en.txt — Russian → English translations
+------------------------------------------
+Derived from the same OpenRussian.org data, under the same licence
+(CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/).
+
+Changes made: each Russian word keeps its frequency rank and up to four
+English senses — only those found in the pronunciation list above —
+with vulgar words filtered out, by tools/build_dictionaries.py. This
+derived file is itself available under CC BY-SA 4.0. The data is
+provided as-is, without warranties.

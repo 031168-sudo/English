@@ -367,26 +367,47 @@ private fun WordEditorScreen(
     var suggestions by remember { mutableStateOf(emptyList<String>()) }
     var speechUnavailable by remember { mutableStateOf(false) }
 
+    // What the dictionary says about a Russian word, typed either in the
+    // word field (to find its English) or as the translation (to check it).
+    var wordInRussian by remember { mutableStateOf<Dictionary.RussianEntry?>(null) }
+    var translationEntry by remember { mutableStateOf<Dictionary.RussianEntry?>(null) }
+    var translationSuggestions by remember { mutableStateOf(emptyList<String>()) }
+
     LaunchedEffect(Unit) {
         Dictionary.prepare(context) { dictionaryReady = Dictionary.isReady }
     }
 
     val key = Dictionary.normalise(english)
+    // A word typed in Russian is not saved as it is: it is looked up, and
+    // one of its English words is picked from the chips under the field.
+    val typedInRussian = Dictionary.isRussian(key) && key.matches(Regex("[а-яё -]+"))
     val formatError = when {
-        key.isEmpty() -> null
+        key.isEmpty() || typedInRussian -> null
+        Dictionary.isRussian(key) -> "Только английские или только русские буквы"
         !key.matches(Regex("[a-z' -]+")) -> "Только английские буквы, дефис и апостроф"
         key.split(' ').size > 3 -> "Не больше трёх слов"
         else -> null
     }
     // The word being edited does not clash with itself.
-    val duplicate = key.isNotEmpty() && formatError == null && key != originalKey &&
-        MyWordsStore.contains(key)
-    val canSave = key.isNotEmpty() && formatError == null && !duplicate
+    val duplicate = key.isNotEmpty() && !typedInRussian && formatError == null &&
+        key != originalKey && MyWordsStore.contains(key)
+    val canSave = key.isNotEmpty() && !typedInRussian && formatError == null && !duplicate
 
     // Exact lookups are instant and follow every keystroke; the slower
     // "may be…" search waits for a pause in typing.
     LaunchedEffect(key, dictionaryReady) {
         suggestions = emptyList()
+        wordInRussian = null
+        if (typedInRussian) {
+            entry = Dictionary.Entry(null, emptyList())
+            val found = Dictionary.lookupRussian(key)
+            wordInRussian = found
+            delay(350)
+            if (found == null && dictionaryReady) {
+                suggestions = withContext(Dispatchers.Default) { Dictionary.suggestRussian(key) }
+            }
+            return@LaunchedEffect
+        }
         if (key.isEmpty() || formatError != null) {
             entry = Dictionary.Entry(null, emptyList())
             return@LaunchedEffect
@@ -402,6 +423,25 @@ private fun WordEditorScreen(
         delay(350)
         if (!found.known && dictionaryReady) {
             suggestions = withContext(Dispatchers.Default) { Dictionary.suggest(key) }
+        }
+    }
+
+    // A translation the user typed in themselves is checked the same way.
+    // One of the dictionary's own translations needs no checking.
+    val translationKey = Dictionary.normaliseRussian(russian)
+    val checkTranslation = russianEdited && Dictionary.isRussian(translationKey) &&
+        entry.translations.none { Dictionary.normaliseRussian(it) == translationKey }
+    LaunchedEffect(translationKey, checkTranslation, dictionaryReady) {
+        translationSuggestions = emptyList()
+        translationEntry = null
+        if (!checkTranslation) return@LaunchedEffect
+        val found = Dictionary.lookupRussian(translationKey)
+        translationEntry = found
+        delay(350)
+        if (found == null && dictionaryReady) {
+            translationSuggestions = withContext(Dispatchers.Default) {
+                Dictionary.suggestRussian(translationKey)
+            }
         }
     }
 
@@ -458,12 +498,14 @@ private fun WordEditorScreen(
             OutlinedTextField(
                 value = english,
                 onValueChange = { english = it },
-                label = { Text("Слово по-английски") },
+                label = { Text("Слово по-английски или по-русски") },
                 singleLine = true,
                 isError = formatError != null || duplicate,
+                // A plain text keyboard, so its language can be switched.
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.None,
-                    keyboardType = KeyboardType.Ascii,
+                    autoCorrectEnabled = false,
+                    keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Next
                 ),
                 trailingIcon = {
@@ -478,8 +520,11 @@ private fun WordEditorScreen(
                     val (text, color) = when {
                         formatError != null -> formatError to MaterialTheme.colorScheme.error
                         duplicate -> "Это слово уже есть в списке" to MaterialTheme.colorScheme.error
-                        key.isEmpty() -> "Например: giraffe" to MaterialTheme.colorScheme.onSurfaceVariant
+                        key.isEmpty() -> "Например: giraffe или жираф" to MaterialTheme.colorScheme.onSurfaceVariant
                         !dictionaryReady -> "Загружаем словарь…" to MaterialTheme.colorScheme.onSurfaceVariant
+                        typedInRussian && wordInRussian != null ->
+                            "Выберите английское слово ниже" to OkColor
+                        typedInRussian -> "Такого слова нет в словаре — проверьте написание" to WarningColor
                         entry.known -> "✓ Есть в словаре" to OkColor
                         else -> "Такого слова нет в словаре — проверьте написание" to WarningColor
                     }
@@ -489,23 +534,14 @@ private fun WordEditorScreen(
             )
 
             if (suggestions.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "Может быть:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .align(Alignment.CenterVertically)
-                            .padding(end = 2.dp)
-                    )
-                    suggestions.forEach { suggestion ->
-                        SuggestionChip(
-                            onClick = { english = suggestion },
-                            label = { Text(suggestion) }
-                        )
-                    }
+                SuggestionRow("Может быть:", suggestions) { english = it }
+            }
+
+            wordInRussian?.let { found ->
+                SuggestionRow("По-английски:", found.english) { choice ->
+                    english = choice
+                    russian = found.word
+                    russianEdited = true
                 }
             }
 
@@ -548,18 +584,37 @@ private fun WordEditorScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 supportingText = {
                     val options = entry.translations
-                    Text(
-                        when {
-                            options.isEmpty() && key.isNotEmpty() && dictionaryReady ->
-                                "Перевода нет в словаре — впишите свой"
-                            options.isNotEmpty() && russian.isNotBlank() &&
-                                russian.trim() !in options -> "В словаре: ${options.joinToString(", ")}"
-                            else -> ""
-                        }
-                    )
+                    val (text, color) = when {
+                        checkTranslation && dictionaryReady && translationEntry == null ->
+                            "Такого слова нет в словаре — проверьте написание" to WarningColor
+                        options.isEmpty() && key.isNotEmpty() && !typedInRussian &&
+                            dictionaryReady && russian.isBlank() ->
+                            "Перевода нет в словаре — впишите свой" to
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        options.isNotEmpty() && russian.isNotBlank() &&
+                            russian.trim() !in options ->
+                            "В словаре: ${options.joinToString(", ")}" to
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        checkTranslation && translationEntry != null -> "✓ Есть в словаре" to OkColor
+                        else -> "" to MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    Text(text, color = color)
                 },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            if (translationSuggestions.isNotEmpty()) {
+                SuggestionRow("Может быть:", translationSuggestions) {
+                    russian = it
+                    russianEdited = true
+                }
+            }
+
+            // Started from the translation: offer its English for the word.
+            val fromTranslation = translationEntry
+            if (key.isEmpty() && fromTranslation != null) {
+                SuggestionRow("По-английски:", fromTranslation.english) { english = it }
+            }
 
             if (entry.translations.size > 1) {
                 FlowRow(
@@ -613,6 +668,30 @@ private fun WordEditorScreen(
                 }
             }
             Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+/** A caption and a row of tappable dictionary suggestions. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SuggestionRow(caption: String, options: List<String>, onPick: (String) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = caption,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier
+                .align(Alignment.CenterVertically)
+                .padding(end = 2.dp)
+        )
+        options.forEach { option ->
+            SuggestionChip(
+                onClick = { onPick(option) },
+                label = { Text(option) }
+            )
         }
     }
 }
