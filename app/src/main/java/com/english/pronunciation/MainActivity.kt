@@ -17,6 +17,7 @@ private sealed class Screen {
     object Splash : Screen()
     object CategoryList : Screen()
     object MyWords : Screen()
+    object Licenses : Screen()
     data class Practice(val category: Category, val wordIndices: List<Int>) : Screen()
     data class Summary(
         val category: Category,
@@ -56,6 +57,7 @@ private fun PronunciationTrainerApp() {
                 categories = CategoryBank.categories,
                 myWordsCount = MyWordsStore.words.size,
                 onMyWords = { screen = Screen.MyWords },
+                onLicenses = { screen = Screen.Licenses },
                 onCategorySelected = { category ->
                     screen = Screen.Practice(category, category.words.indices.toList())
                 }
@@ -71,6 +73,9 @@ private fun PronunciationTrainerApp() {
                     }
                 }
             )
+        }
+        is Screen.Licenses -> {
+            LicensesScreen(onBack = { screen = Screen.CategoryList })
         }
         is Screen.Practice -> {
             PracticeScreen(

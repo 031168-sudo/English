@@ -44,6 +44,7 @@ fun CategoryListScreen(
     categories: List<Category>,
     myWordsCount: Int,
     onMyWords: () -> Unit,
+    onLicenses: () -> Unit,
     onCategorySelected: (Category) -> Unit
 ) {
     Scaffold(
@@ -79,6 +80,9 @@ fun CategoryListScreen(
             }
             items(categories) { category ->
                 CategoryCard(category = category, onClick = { onCategorySelected(category) })
+            }
+            item {
+                LicensesCard(onClick = onLicenses)
             }
         }
     }
@@ -140,6 +144,60 @@ private fun MyWordsCard(count: Int, onClick: () -> Unit) {
                 text = if (count == 0) "добавьте свои" else wordsLabel(count),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+/**
+ * Not a topic: a flat tile in its own colour, with no word count, so it does
+ * not read as one more set of words to practise.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LicensesCard(onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                modifier = Modifier.size(64.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "📜", fontSize = 32.sp)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "Лицензии",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "авторы и права",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.75f)
             )
         }
     }
